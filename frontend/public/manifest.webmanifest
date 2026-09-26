@@ -1,0 +1,23 @@
+{
+  "name": "Enprove Iran — پایش هوشمند انرژی",
+  "short_name": "ِان‌پرو",
+  "description": "پایش انرژی، تحلیل مصرف و کاهش هزینه برای صنعت ایران",
+  "start_url": "/fa/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#05070c",
+  "theme_color": "#05070c",
+  "lang": "fa",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "پیش‌خوان", "url": "/fa/dashboard" },
+    { "name": "هشدارها", "url": "/fa/alerts" }
+  ]
+}
