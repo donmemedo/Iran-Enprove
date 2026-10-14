@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import "../globals.css";
 import { Shell } from "@/components/nav";
@@ -13,10 +14,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
 };
-
-export function generateStaticParams() {
-  return locales.map((locale) => ({ locale }));
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale: rawLocale } = await params;
@@ -44,11 +41,13 @@ export default async function LocaleLayout({
   const { locale: rawLocale } = await params;
   if (!locales.includes(rawLocale as Locale)) notFound();
   const locale = toLocale(rawLocale);
+  const nonce = (await headers()).get("x-nonce") ?? undefined; // set by middleware.ts; makes every page dynamic
 
   return (
     <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <link rel="preload" href="/fonts/Vazirmatn.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
         <Shell locale={locale}>{children}</Shell>

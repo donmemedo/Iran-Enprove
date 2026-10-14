@@ -1,25 +1,44 @@
+# Required in .env (see .env.example): ADMIN_TOKEN, PROXY_SECRET
 services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: sqlite:///./data/enprove.db
+      DATABASE_URL: sqlite:////app/data/enprove.db
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      PROXY_SECRET: ${PROXY_SECRET:?set PROXY_SECRET in .env}
+      DEBUG: ${DEBUG:-0}
     volumes:
       - api-data:/app/data
-    ports:
-      - "8100:8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 40s
+    # internal only: the browser reaches the API through the frontend proxy, never directly
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 128
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     environment:
       API_URL: http://backend:8000
+      PROXY_SECRET: ${PROXY_SECRET}
     ports:
       - "3200:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 256
+    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy

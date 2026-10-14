@@ -4,9 +4,7 @@ import { Badge, Bar, Card, SectionTitle } from "@/components/ui";
 import { RangePicker } from "@/components/range-picker";
 import { api, type SiteRow } from "@/lib/api";
 import { energy, num, pct, toman } from "@/lib/format";
-import { getDict, isRtl, type Locale, toLocale } from "@/lib/i18n";
-
-export const dynamic = "force-dynamic";
+import { getDict, isRtl, toLocale } from "@/lib/i18n";
 
 export default async function Sites({
   params,

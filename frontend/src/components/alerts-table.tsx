@@ -1,21 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, Check, Clock } from "lucide-react";
 import { Badge, Card, Empty } from "./ui";
 import { num, pctSign, shortDate, toman } from "@/lib/format";
 import { getDict, type Locale } from "@/lib/i18n";
+import { retryMinutes, useStaff } from "@/lib/use-staff";
 import type { AlertRow } from "@/lib/api";
 
 const SEV_TONE = { high: "danger", medium: "warn", low: "muted" } as const;
 
 export function AlertsTable({ locale, rows }: { locale: Locale; rows: AlertRow[] }) {
   const t = getDict(locale);
+  const staff = useStaff(); // ack/resolve need the staff token; anonymous visitors never see the buttons
   const [items, setItems] = useState(rows);
   const [busy, setBusy] = useState<number | null>(null);
+  const [error, setError] = useState("");
 
   const patch = async (id: number, status: string) => {
     setBusy(id);
+    setError("");
     try {
       const res = await fetch(`/api/alerts/${id}`, {
         method: "PATCH",
@@ -23,6 +28,9 @@ export function AlertsTable({ locale, rows }: { locale: Locale; rows: AlertRow[]
         body: JSON.stringify({ status }),
       });
       if (res.ok) setItems((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+      else setError(res.status === 401 ? t.staff_only : res.status === 429 ? t.rate_limited.replace("{m}", num(retryMinutes(res), locale)) : t.action_failed);
+    } catch {
+      setError(t.action_failed);
     } finally {
       setBusy(null);
     }
@@ -32,6 +40,11 @@ export function AlertsTable({ locale, rows }: { locale: Locale; rows: AlertRow[]
 
   return (
     <div className="space-y-3">
+      {error && (
+        <p role="alert" className="rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-4 py-3 text-sm text-danger">
+          {error} {error === t.staff_only && <Link href={`/${locale}/login`} className="font-bold underline">{t.nav_login}</Link>}
+        </p>
+      )}
       {items.map((a) => {
         const cost = toman(a.est_cost_toman, locale);
         return (
@@ -72,26 +85,20 @@ export function AlertsTable({ locale, rows }: { locale: Locale; rows: AlertRow[]
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                {a.status === "open" && (
-                  <button
-                    disabled={busy === a.id}
-                    onClick={() => patch(a.id, "ack")}
-                    className="rounded-xl px-3 py-2 text-xs font-semibold text-muted transition hover:bg-[color-mix(in_srgb,var(--fg)_8%,transparent)] hover:text-fg disabled:opacity-50"
-                  >
-                    {t.alert_ack}
-                  </button>
-                )}
-                {a.status !== "resolved" && (
-                  <button
-                    disabled={busy === a.id}
-                    onClick={() => patch(a.id, "resolved")}
-                    className="inline-flex items-center gap-1 rounded-xl bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] px-3 py-2 text-xs font-semibold text-accent transition hover:opacity-80 disabled:opacity-50"
-                  >
-                    <Check size={14} /> {t.alert_resolve}
-                  </button>
-                )}
-              </div>
+              {staff === true && (
+                <div className="flex gap-2">
+                  {a.status === "open" && (
+                    <button disabled={busy === a.id} onClick={() => patch(a.id, "ack")} className="btn-ghost">
+                      {t.alert_ack}
+                    </button>
+                  )}
+                  {a.status !== "resolved" && (
+                    <button disabled={busy === a.id} onClick={() => patch(a.id, "resolved")} className="btn-tint">
+                      <Check size={14} /> {t.alert_resolve}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         );

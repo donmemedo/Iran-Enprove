@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`glass rounded-3xl ${className}`}>{children}</div>;
+/** Solid surface. Translucency is reserved for floating chrome (.glass): rail, header, drawer, tooltips. */
+export function Card({ children, className = "", role }: { children: ReactNode; className?: string; role?: string }) {
+  return <div role={role} className={`card rounded-3xl ${className}`}>{children}</div>;
 }
 
 export function SectionTitle({ title, sub, action }: { title: string; sub?: string; action?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
+        <h2 className="display text-xl font-bold sm:text-2xl">{title}</h2>
         {sub && <p className="mt-1 max-w-2xl text-sm text-muted">{sub}</p>}
       </div>
       {action}
@@ -49,15 +50,19 @@ export function Kpi({
   return (
     <Card className="card-hover relative overflow-hidden p-5">
       <div
-        className="pointer-events-none absolute -top-16 end-[-3rem] h-32 w-32 rounded-full opacity-60 blur-2xl"
-        style={{ background: tone === "danger" ? "var(--danger)" : tone === "warn" ? "var(--warn)" : "var(--accent)", opacity: 0.16 }}
+        className="pointer-events-none absolute -top-16 end-[-3rem] h-32 w-32 rounded-full"
+        style={{
+          // pre-blurred radial gradient: same soft glow as blur-2xl without a filter on every card
+          background: `radial-gradient(closest-side, ${tone === "danger" ? "var(--danger)" : tone === "warn" ? "var(--warn)" : "var(--accent)"}, transparent)`,
+          opacity: 0.18,
+        }}
       />
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm text-muted">{label}</span>
         {icon && <span className="text-muted opacity-70">{icon}</span>}
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="latin-nums text-3xl font-extrabold tracking-tight">{value}</span>
+        <span className="latin-nums display text-3xl font-extrabold">{value}</span>
         {unit && <span className="text-xs font-medium text-muted">{unit}</span>}
       </div>
       {delta && (

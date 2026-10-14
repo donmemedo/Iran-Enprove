@@ -4,9 +4,7 @@ import { Card, SectionTitle } from "@/components/ui";
 import { RoiCalculator } from "@/components/roi-calculator";
 import { api, type Overview } from "@/lib/api";
 import { energy, num, toman } from "@/lib/format";
-import { getDict, isRtl, type Locale, toLocale } from "@/lib/i18n";
-
-export const dynamic = "force-dynamic";
+import { getDict, isRtl, toLocale } from "@/lib/i18n";
 
 const OFFERS = [
   { t: "offer_1_t", d: "offer_1_d", Icon: Activity },
@@ -40,10 +38,10 @@ export default async function Landing({ params }: { params: Promise<{ locale: st
     <div className="space-y-24 pb-8">
       {/* hero */}
       <section className="rise pt-6 sm:pt-12">
-        <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-accent">
+        <span className="card inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold text-accent">
           <Zap size={14} /> {t.hero_badge}
         </span>
-        <h1 className="mt-6 text-4xl font-black leading-[1.15] tracking-tight sm:text-6xl lg:text-7xl">
+        <h1 className="display mt-6 text-4xl font-black sm:text-6xl lg:text-7xl">
           {t.hero_title_1} <br className="hidden sm:block" />
           <span className="grad-text">{t.hero_title_2}</span>
         </h1>
@@ -52,14 +50,13 @@ export default async function Landing({ params }: { params: Promise<{ locale: st
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href={`/${locale}/pilot`}
-            className="inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white shadow-xl transition hover:opacity-90"
-            style={{ background: "linear-gradient(100deg, var(--accent), var(--accent-2))" }}
+            className="btn-primary px-6 py-3.5"
           >
             {t.hero_cta} <Arrow size={16} />
           </Link>
           <Link
             href={`/${locale}/dashboard`}
-            className="glass inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition hover:opacity-80"
+            className="card inline-flex min-h-11 items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition hover:opacity-80"
           >
             {t.hero_cta2}
           </Link>
@@ -115,7 +112,7 @@ export default async function Landing({ params }: { params: Promise<{ locale: st
         <SectionTitle title={t.trend_title} />
         <div className="flex flex-wrap gap-3">
           {TRENDS.map(({ k, Icon }) => (
-            <span key={k} className="glass inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium">
+            <span key={k} className="card inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium">
               <Icon size={16} className="text-accent" />
               {t[k]}
             </span>
@@ -133,15 +130,14 @@ export default async function Landing({ params }: { params: Promise<{ locale: st
       <section>
         <Card className="relative overflow-hidden p-8 sm:p-12">
           <div
-            className="pointer-events-none absolute -top-24 -end-24 h-72 w-72 rounded-full blur-3xl"
-            style={{ background: "var(--accent)", opacity: 0.18 }}
+            className="pointer-events-none absolute -top-24 -end-24 h-72 w-72 rounded-full"
+            style={{ background: "radial-gradient(closest-side, var(--accent), transparent)", opacity: 0.2 }}
           />
-          <h2 className="max-w-2xl text-2xl font-black tracking-tight sm:text-4xl">{t.case_title}</h2>
+          <h2 className="display max-w-2xl text-2xl font-black sm:text-4xl">{t.case_title}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">{t.case_sub}</p>
           <Link
             href={`/${locale}/pilot`}
-            className="mt-7 inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white shadow-xl transition hover:opacity-90"
-            style={{ background: "linear-gradient(100deg, var(--accent), var(--accent-2))" }}
+            className="btn-primary mt-7 px-6 py-3.5"
           >
             {t.hero_cta} <Arrow size={16} />
           </Link>

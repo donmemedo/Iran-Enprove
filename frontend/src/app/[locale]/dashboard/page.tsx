@@ -5,9 +5,7 @@ import { MixDonut, TrendChart } from "@/components/charts";
 import { RangePicker } from "@/components/range-picker";
 import { api, type AlertRow, type Overview } from "@/lib/api";
 import { energy, num, pct, pctSign, shortDate, toman } from "@/lib/format";
-import { getDict, type Locale, toLocale } from "@/lib/i18n";
-
-export const dynamic = "force-dynamic";
+import { getDict, toLocale } from "@/lib/i18n";
 
 export default async function Dashboard({
   params,

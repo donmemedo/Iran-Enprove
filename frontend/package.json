@@ -9,11 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.5.4",
+    "lucide-react": "0.469.0",
+    "next": "15.5.27",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "recharts": "2.15.4",
-    "lucide-react": "0.469.0"
+    "recharts": "2.15.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.13",
@@ -25,6 +25,11 @@
   },
   "allowScripts": {
     "@tailwindcss/oxide@4.1.13": true,
-    "sharp@0.34.5": true
+    "sharp@0.35.5": true
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.28"
+    }
   }
 }
