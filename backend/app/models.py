@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
 
 
@@ -32,8 +33,11 @@ class Meter(SQLModel, table=True):
 
 
 class Reading(SQLModel, table=True):
+    # every aggregate filters by meter and time range; one composite index serves them all
+    __table_args__ = (Index("ix_reading_meter_ts", "meter_id", "ts"),)
+
     id: int | None = Field(default=None, primary_key=True)
-    meter_id: int = Field(foreign_key="meter.id", index=True)
+    meter_id: int = Field(foreign_key="meter.id")  # ix_reading_meter_ts covers meter_id lookups
     ts: datetime = Field(index=True)
     kwh: float
 

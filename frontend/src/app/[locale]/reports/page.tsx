@@ -1,17 +1,14 @@
 import { Card, Kpi, SectionTitle } from "@/components/ui";
-import { MeasureTable } from "../sites/[slug]/page";
-import { api, type Overview, type SiteDetail } from "@/lib/api";
+import { MeasureTable } from "@/components/measure-table";
+import { api, type SiteMeasures } from "@/lib/api";
 import { energy, num, toman } from "@/lib/format";
-import { getDict, type Locale, toLocale } from "@/lib/i18n";
-
-export const dynamic = "force-dynamic";
+import { getDict, toLocale } from "@/lib/i18n";
 
 export default async function Reports({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = toLocale(rawLocale);
   const t = getDict(locale);
-  const overview = await api<Overview>("/api/overview?days=30");
-  const details = await Promise.all(overview.sites.map((s) => api<SiteDetail>(`/api/sites/${s.slug}?days=30`)));
+  const details = await api<SiteMeasures[]>("/api/measures", 300); // one call for every site, was 1 + N
 
   const all = details.flatMap((d) => d.measures);
   const totalSaving = all.reduce((a, m) => a + m.saving_toman_year, 0);

@@ -1,9 +1,7 @@
 import { SectionTitle } from "@/components/ui";
 import { AlertsTable } from "@/components/alerts-table";
 import { api, type AlertRow } from "@/lib/api";
-import { getDict, type Locale, toLocale } from "@/lib/i18n";
-
-export const dynamic = "force-dynamic";
+import { getDict, toLocale } from "@/lib/i18n";
 
 export default async function AlertsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;

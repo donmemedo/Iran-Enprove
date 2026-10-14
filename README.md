@@ -29,9 +29,10 @@ See `backend/app/analytics.py` (`python app/analytics.py` runs its self-check).
 ### Docker (both services)
 
 ```bash
+cp .env.example .env    # then set ADMIN_TOKEN and PROXY_SECRET: openssl rand -hex 32
 docker compose up --build
-# web  → http://localhost:3200
-# api  → http://localhost:8100/api/docs
+# web → http://localhost:3200   (the API is internal only; it is not published on the host)
+# PyPI blocked? docker compose build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ### Local
@@ -39,7 +40,7 @@ docker compose up --build
 ```bash
 # backend
 cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --port 8100          # seeds 90 days of demo data on first start
+ADMIN_TOKEN=$(openssl rand -hex 32) .venv/bin/uvicorn app.main:app --port 8100   # seeds demo data on first start
 
 # frontend
 cd frontend && npm install
@@ -49,6 +50,27 @@ API_URL=http://localhost:8100 npm run dev           # http://localhost:3200
 The browser only ever talks to the frontend origin: `/api/*` is proxied to FastAPI by
 `src/app/api/[...path]/route.ts`, which reads `API_URL` at runtime — so there is no CORS
 setup, no public API host to leak, and the same image runs anywhere.
+
+## Security
+
+The full audit, pen-test results and performance numbers are in `AUDIT_REPORT.md`.
+
+| Variable | Where | Meaning |
+|---|---|---|
+| `ADMIN_TOKEN` | API, required | Staff token, 32+ characters. Unlocks the lead list, alert triage and `/login`. Shorter or unset disables staff endpoints (503). |
+| `PROXY_SECRET` | API and frontend, required in Docker | Shared secret the proxy sends as `X-Proxy-Key`. The API refuses every other caller except `/api/health`. |
+| `TRUST_PROXY` | frontend | `1` only behind a reverse proxy that sets `X-Real-IP` or appends `X-Forwarded-For`. Enables per-visitor rate limits. |
+| `DEBUG` | API | `1` turns on Swagger at `/api/docs`. Never in production. |
+
+- **Staff login.** Staff sign in at `/fa/login` with the token. It is kept in an httpOnly,
+  `SameSite=Strict` cookie scoped to `/api`, and the browser never sees it again.
+- **Limits.** Reads are limited to 120 per minute per visitor and the ROI calculator to 60.
+  Leads are limited to 10 per 10 minutes per visitor and 300 per hour overall. Failed logins
+  are limited to 10 per 10 minutes. Request bodies are capped at 16 KB.
+- **Workers.** Rate limits and the 60-second response cache live in the API process. Keep
+  `WEB_CONCURRENCY=1` until they move to Redis.
+- **Checks.** `backend/.venv/bin/python backend/tests/smoke_security.py` runs 31 security
+  checks on a throwaway copy of the database.
 
 If `docker compose` cannot reach the daemon, you are on the Docker Desktop context while
 the system daemon is the live one: `docker context use default`.
