@@ -11,7 +11,7 @@ const MAX_QUERY = 256;
 const TIMEOUT_MS = 10_000;
 const METHODS = new Set(["GET", "POST", "PATCH"]);
 const SEGMENT = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-const BLOCKED = new Set(["docs", "openapi.json", "redoc", "me"]); // staff login goes through /api/auth
+const BLOCKED = new Set(["docs", "openapi.json", "me"]); // staff login goes through /api/auth
 const PASS_RES = ["content-type", "cache-control", "etag", "retry-after", "www-authenticate"];
 
 const json = (status: number, detail: string) =>

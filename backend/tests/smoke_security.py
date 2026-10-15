@@ -35,13 +35,7 @@ def check(name, ok, got=""):
 VISITOR = {"x-forwarded-for": "203.0.113.9"}
 
 
-async def loopback_peer(scope, receive, send):  # starlette 0.41 TestClient has no client= argument
-    if scope["type"] == "http":
-        scope["client"] = ("127.0.0.1", 50000)
-    await app(scope, receive, send)
-
-
-with TestClient(loopback_peer, raise_server_exceptions=False, headers=VISITOR) as c:
+with TestClient(app, raise_server_exceptions=False, headers=VISITOR, client=("127.0.0.1", 50000)) as c:
     r = c.get("/api/health"); check("health 200", r.status_code == 200, r.status_code)
     r = c.get("/api/overview?days=30"); et = r.headers.get("etag")
     check("overview 200 with ETag", r.status_code == 200 and bool(et), r.status_code)
@@ -59,8 +53,9 @@ with TestClient(loopback_peer, raise_server_exceptions=False, headers=VISITOR) a
     r = c.patch("/api/alerts/1", json={"status": "ack"}); check("PATCH alert anon -> 401", r.status_code == 401, r.status_code)
     r = c.patch("/api/alerts/1", json={"status": "hacked"}, headers=AUTH); check("PATCH bad status -> 422", r.status_code == 422, r.status_code)
     r = c.patch("/api/alerts/1", json={"status": "ack"}, headers=AUTH); check("PATCH alert staff -> 200", r.status_code == 200, r.status_code)
-    r = c.post("/api/roi", content='{"annual_bill_toman": NaN}', headers={"content-type": "application/json"})
-    check("roi NaN -> 422 (not 500)", r.status_code == 422, r.status_code)
+    r = c.post("/api/leads", content='{"company": "NaN Co", "contact": "Tester", "phone": "09123456789", "annual_bill_toman": NaN}',
+               headers={"content-type": "application/json"})
+    check("lead NaN -> 422 (not 500)", r.status_code == 422, r.status_code)
     check("422 body never echoes the input", r.status_code == 422 and "input" not in r.text and "ctx" not in r.text)
     r = c.get("/api/measures"); check("measures 200, 6 sites with rows", r.status_code == 200 and len(r.json()) == 6 and all(x["measures"] for x in r.json()), r.status_code)
     before = c.get("/api/alerts").headers.get("etag")
@@ -69,7 +64,7 @@ with TestClient(loopback_peer, raise_server_exceptions=False, headers=VISITOR) a
     check("cache cleared after PATCH (no stale 60s read)", r.headers.get("etag") != before and fresh == "resolved", fresh)
     shared = [c.get("/api/sites?days=7", headers={"x-forwarded-for": ""}).status_code for _ in range(130)]
     check("shared proxy bucket is 10x wider (130 reads, no 429)", 429 not in shared, sorted(set(shared)))
-    r = c.post("/api/roi", json={"annual_bill_toman": 3e10}); check("roi valid -> 200", r.status_code == 200, r.status_code)
+    r = c.post("/api/roi", json={"annual_bill_toman": 3e10}); check("roi endpoint removed (404/405)", r.status_code in (404, 405), r.status_code)
     r = c.post("/api/leads", json={**LEAD, "note": "x" * 20000}); check("lead 20KB body -> 413", r.status_code == 413, r.status_code)
     r = c.post("/api/leads", json={**LEAD, "phone": "abc"}); check("lead bad phone -> 422", r.status_code == 422, r.status_code)
     r = c.post("/api/leads", json={**LEAD, "role": "admin"}); check("lead extra field -> 422", r.status_code == 422, r.status_code)
@@ -81,7 +76,6 @@ with TestClient(loopback_peer, raise_server_exceptions=False, headers=VISITOR) a
     bad = [c.get("/api/leads", headers={"authorization": "Bearer wrong"}).status_code for _ in range(11)]
     check("auth lockout after repeated failures -> 429", bad[-1] == 429, bad)
     r = c.get("/api/leads", headers=AUTH); check("valid token still works during a lockout", r.status_code == 200, r.status_code)
-    spoof = {**AUTH, "x-forwarded-for": "6.6.6.6, 203.0.113.9"}
     r = c.get("/api/leads", headers={"authorization": "Bearer wrong", "x-forwarded-for": "6.6.6.6, 203.0.113.9"})
     check("rightmost XFF used (spoofed left entry still locked out)", r.status_code == 429, r.status_code)
 

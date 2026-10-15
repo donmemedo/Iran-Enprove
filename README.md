@@ -16,7 +16,7 @@ buildings, cold storage and multi-branch retail.
 | Product 1 — analysis & temporary monitoring | hourly meter data per load (chiller, compressed air, HVAC, lighting, process), 24-hour profile, load mix |
 | Product 2 — dashboard & alerts | portfolio dashboard, per-site pages, energy intensity (kWh/m²), cost in Toman, anomaly alerts with triage |
 | Product 3 — audit & energy management | saving measures per site with annual saving, capex and payback (M&V table) |
-| Pricing & ROI (500M setup + 120M/month per site) | live ROI calculator on the landing page, `POST /api/roi` |
+| Pricing & ROI (500M setup + 120M/month per site) | live ROI calculator on the landing page, computed in the browser by `frontend/src/lib/roi.ts` |
 | Sales funnel / pilot requests | pilot request form → `POST /api/leads` |
 
 Anomaly detection is real, not scripted: each meter is compared against **its own
@@ -64,7 +64,7 @@ The full audit, pen-test results and performance numbers are in `AUDIT_REPORT.md
 
 - **Staff login.** Staff sign in at `/fa/login` with the token. It is kept in an httpOnly,
   `SameSite=Strict` cookie scoped to `/api`, and the browser never sees it again.
-- **Limits.** Reads are limited to 120 per minute per visitor and the ROI calculator to 60.
+- **Limits.** Reads are limited to 120 per minute per visitor.
   Leads are limited to 10 per 10 minutes per visitor and 300 per hour overall. Failed logins
   are limited to 10 per 10 minutes. Request bodies are capped at 16 KB.
 - **Workers.** Rate limits and the 60-second response cache live in the API process. Keep
@@ -82,7 +82,7 @@ backend/          FastAPI + SQLModel + SQLite
   app/models.py     Site, Meter, Reading, Alert, Measure, Lead
   app/analytics.py  weekly baseline, MAD anomaly detection, ROI math (+ self-check)
   app/seed.py       6 demo sites, 24 meters, ~52k hourly readings, injected faults
-  app/main.py       /api/overview, /api/sites, /api/alerts, /api/roi, /api/leads
+  app/main.py       /api/overview, /api/sites, /api/alerts, /api/measures, /api/leads
 frontend/         Next.js 15 (App Router) + Tailwind v4 + Recharts
   src/app/[locale]/ landing, dashboard, sites, site detail, alerts, reports, pilot
   src/app/api/       runtime proxy to FastAPI
@@ -106,7 +106,8 @@ frontend/         Next.js 15 (App Router) + Tailwind v4 + Recharts
   service worker (offline shell + cached last dashboard payload) turns it installable.
 - **APK / IPA**: wrap the same build with Capacitor (`@capacitor/android`, `@capacitor/ios`)
   pointed at the deployed URL, or ship a TWA for Android.
-- **Production data**: swap SQLite for Postgres + TimescaleDB, add auth (the plan's
+- **Production data**: swap SQLite for Postgres + TimescaleDB (the API is SQLite-only today:
+  `strftime` in the daily and hourly queries and SQLite pragmas on connect), add auth (the plan's
   buyer roles: CEO/CFO, energy manager, facility manager) and per-tenant isolation.
 
 Demo data is synthetic; the financial assumptions come from the business plan and

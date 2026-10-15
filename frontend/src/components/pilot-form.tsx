@@ -17,25 +17,16 @@ export function PilotForm({ locale }: { locale: Locale }) {
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    // every named input is sent and LeadIn forbids extra fields, so a new input needs a LeadIn field too.
+    // Names match LeadIn (including the "website" honeypot); only bill, in million Toman, is converted.
+    const { bill, ...fields } = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
     setState("sending");
     setError("");
     try {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          company: String(f.get("company") ?? ""),
-          contact: String(f.get("contact") ?? ""),
-          phone: String(f.get("phone") ?? ""),
-          email: String(f.get("email") ?? ""),
-          city: String(f.get("city") ?? ""),
-          sites: Number(f.get("sites") || 1),
-          annual_bill_toman: Number(f.get("bill") || 0) * 1e6,
-          note: String(f.get("note") ?? ""),
-          locale,
-          website: String(f.get("website") ?? ""), // honeypot, see below
-        }),
+        body: JSON.stringify({ ...fields, sites: Number(fields.sites || 1), annual_bill_toman: Number(bill || 0) * 1e6, locale }),
       });
       if (res.ok) return setState("ok");
       setError(res.status === 429 ? t.rate_limited.replace("{m}", num(retryMinutes(res), locale)) : res.status === 422 ? t.f_err : t.action_failed);

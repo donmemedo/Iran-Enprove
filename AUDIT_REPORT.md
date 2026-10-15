@@ -1,6 +1,7 @@
 # Security, performance and UI audit
 
 Enprove Iran, branch `security-hardening`, compared with `main` at `92e8fa5`. Work done between 2026-09-30 and 2026-10-15.
+The follow-up branch `hardening-followup` (PR #2) adds a second ponytail review pass; see [Follow-up](#follow-up-2026-10-15).
 
 ## Verdict
 
@@ -60,7 +61,7 @@ Severity is for `main`. Every fix is in this branch.
 | H1 | High | Found in this audit: a crafted `Host` header made the backend's gate read a different path, so the proxy key could be skipped (Starlette PYSEC-2026-161) | The gate reads the routed path from the ASGI scope. FastAPI 0.143.0 and Starlette 1.7.0. | pen test before/after, acceptance |
 | F6 | Medium | No rate limiting, so lead spam and expensive reads are a cheap DoS | Per-IP sliding windows, a global cap of 300 leads per hour, a failed-login lockout | smoke |
 | F7 | Medium | Lead fields have no length or format checks and there is no body cap; a 2 MB lead was stored | Strict Pydantic models, a phone regex, a 16 KB cap in both the API and the proxy | smoke, acceptance |
-| F8 | Medium | `NaN` in a request crashes the server with a 500 | `allow_inf_nan=False`, and a 422 handler that never echoes the input | smoke, acceptance |
+| F8 | Medium | `NaN` in a request crashes the server with a 500 (shown on `/api/roi`) | `allow_inf_nan=False`, and a 422 handler that never echoes the input | smoke, acceptance |
 | F9 | Medium | Swagger and OpenAPI are public | Served only when `DEBUG=1` | acceptance |
 | F10 | Medium | CORS is `*` with every method | Removed; the app is same-origin through the proxy | code |
 | F11 | Medium | No CSP and no security headers | Per-request nonce CSP, `frame-ancestors 'none'`, XFO, nosniff, Referrer-Policy, Permissions-Policy, COOP. HSTS is sent only over https. | acceptance: all 33 scripts carry the nonce |
@@ -84,7 +85,7 @@ These are the same requests sent to the original API and to this branch. The ful
 | Anonymous `GET /api/leads` | 200, all leads | 401 |
 | Anonymous alert `PATCH` | 200 | 401 |
 | `/api/docs` | 200 | 404 |
-| `NaN` in `/api/roi` | 500 | 422, input not echoed |
+| `NaN` in a number field (`/api/roi` on `main`, `/api/leads` here) | 500 | 422, input not echoed |
 | 20 KB lead | 201, stored | 413 |
 | API without the proxy key | no gate | 403 |
 | API without the key, crafted `Host` header | no gate | 403 (was 200 before the H1 fix) |
@@ -154,7 +155,7 @@ What made the difference:
 
 ## Code graph
 
-`graphify-out/` holds the code knowledge graph: 332 nodes, 815 edges, 17 communities, all from the AST at zero token cost.
+`graphify-out/` holds the code knowledge graph: 342 nodes, 826 edges and 24 named communities, all from the AST at zero token cost.
 
 - **Core abstractions:** the most connected nodes are the i18n and formatting helpers (`getDict`, `num`, `toman`, `toLocale`, `energy`) and the backend's `site_detail` and `Site`.
 - **Clean structure:** there are no import cycles.
@@ -164,13 +165,41 @@ What made the difference:
 ## Residual risks and what was not done
 
 - **Attack tree and the multi-agent red-team pass:** stopped by the safety check and skipped, as described above.
-- **Frontend Docker image:** not built. The build machine had about 600 MB of free memory. The backend image was built and tested.
-- **Real-browser CSP check:** not done. The served HTML was checked instead: all 33 scripts carry the per-request nonce. Opening each page in a browser and watching the console is still worth doing once.
-- **Last UI tweak not in a production build:** two touch-target sizes and one Persian word changed after the last build. The type-check passes.
+- **Frontend Docker image:** still not built. On 2026-10-15 the machine had about 600 MB available, with swap full and a load average near 150. The backend image was built and tested earlier.
+- **Real-browser CSP check:** still not done. A headless-Chrome check was written, but the harness stopped the test backend for low memory before it ran. The served HTML was checked instead: all 33 scripts carry the per-request nonce. Opening each page in a browser and watching the console is still worth doing once.
 - **One shared staff token:** there are no per-user accounts or roles yet. Add them before more than one person needs staff access.
 - **Lead data:** names and phone numbers are stored unencrypted in SQLite, with no retention period.
 - **Unknown site pages return 200, not 404.** Because pages stream, an unknown site shows the not-found screen with `noindex` but a 200 status. Next documents this behavior.
 - **Next 16:** not adopted. 15.5.27 is the maintained backport line.
+
+## Follow-up 2026-10-15
+
+A second `ponytail-review` pass over the PR #1 diff, applied on branch `hardening-followup`. It cuts 37 lines and adds none of substance.
+
+| Cut | Why it could go |
+|---|---|
+| `POST /api/roi` and its `RoiIn` model | Nothing called it: the calculator computes ROI in the browser. One less public endpoint and rate-limit bucket. `analytics.roi()` stays as the source for the parity check. |
+| `IS_SQLITE` flag and its three branches | The daily and hourly queries use `strftime`, so the API only runs on SQLite. The README's Postgres note now says so. |
+| `Limiter.count()` | Its only caller was `hit()`, so it is inlined there. |
+| `MAX_BODY_BYTES` environment knob | Nobody set or documented it; the 16 KB cap is now a constant. |
+| `loopback_peer` wrapper in the smoke test | Starlette 1.7's `TestClient` takes `client=` directly. An unused variable went too. |
+| `--surface-solid` CSS token | It equalled `--surface` in both themes. |
+| Ten `String(f.get(...))` lines in the pilot form | The form's field names already match the API, so one `Object.fromEntries` call builds the body. A comment warns that the API rejects extra fields. |
+| `redoc` in the proxy blocklist | The API never serves ReDoc. |
+
+The smoke test now checks `NaN` on `/api/leads` and confirms `/api/roi` is gone. It still has 31 checks.
+
+| Check after the follow-up | Result |
+|---|---|
+| `backend/tests/smoke_security.py` | 31 / 31 |
+| `tsc --noEmit` | pass |
+| `frontend/scripts/roi-check.mjs` | 5 / 5 |
+| `next build` (production) | pass, all 11 routes |
+| Analytics self-check | pass |
+| Bandit | no new findings |
+| Semgrep | **not re-run.** It timed out twice at a load average of about 150. PR #1's 0-finding run covers everything except these edits, which are mostly deletions. |
+
+The code graph was refreshed with `graphify update .`: 342 nodes, 826 edges and 24 named communities. The README semantic pass was skipped again, because the safety check blocked it before.
 
 ## Re-run the checks
 
