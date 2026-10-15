@@ -1,5 +1,5 @@
 // Port of backend/app/analytics.py roi(): the formula is ten lines, so the calculator runs it on
-// every slider move with zero latency instead of a debounced round trip. POST /api/roi still exists.
+// every slider move with zero latency instead of a debounced round trip. scripts/roi-check.mjs keeps them equal.
 export const CO2_KG_PER_KWH = 0.62;
 
 export type Roi = {

@@ -12,7 +12,6 @@
   --bg: #f4f6f9;
   --surface: #ffffff;                     /* cards: solid, so text never sits on two translucent layers */
   --chrome: rgba(255, 255, 255, 0.72);    /* floating chrome: rail, header, drawer, tooltips */
-  --surface-solid: #ffffff;
   --fg: #0a1220;
   --muted: #5c6878;
   --line: rgba(9, 18, 33, 0.09);
@@ -30,7 +29,6 @@
   --bg: #05070c;
   --surface: #0c1017;
   --chrome: rgba(12, 16, 23, 0.72);
-  --surface-solid: #0c1017;
   --fg: #eef2f7;
   --muted: #94a1b2;
   --line: rgba(255, 255, 255, 0.1);
@@ -46,7 +44,6 @@
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
-  --color-surface-solid: var(--surface-solid);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-line: var(--line);
@@ -194,13 +191,13 @@ label:has(.field:user-invalid) .hint { display: block; }
   html.theming, html.theming * { transition: none !important; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .glass { background: var(--surface-solid); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
   .drawer .scrim { background: rgba(0,0,0,.6); }
 }
 @media (prefers-contrast: more) {
   :root { --line: rgba(9, 18, 33, 0.35); --muted: #3c4656; }
   .dark { --line: rgba(255, 255, 255, 0.4); --muted: #c3ccd8; }
-  .card, .glass { background: var(--surface-solid); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+  .card, .glass { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
   body::before { display: none; }
 }
 

@@ -2,7 +2,7 @@
 
 Security model: the browser only talks to the Next.js proxy, which forwards to this
 service on an internal network and signs each request with X-Proxy-Key. Public read
-endpoints (health, overview, sites, alerts, roi, leads POST) stay open; anything that
+endpoints (health, overview, sites, alerts, measures, leads POST) stay open; anything that
 returns PII or changes state (GET /api/leads, PATCH /api/alerts, /api/me) needs the
 staff bearer token from ADMIN_TOKEN. Every endpoint is rate limited per client IP,
 bodies are capped, and public reads carry ETag/Cache-Control so repeat views are free.
@@ -28,7 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import event, func
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from .analytics import CO2_KG_PER_KWH, roi
+from .analytics import CO2_KG_PER_KWH
 from .models import Alert, Lead, Measure, Meter, Reading, Site
 from .seed import ensure
 
@@ -40,30 +40,28 @@ DEBUG = os.getenv("DEBUG", "0") == "1"
 _TOKEN = os.getenv("ADMIN_TOKEN", "")
 ADMIN_TOKEN = _TOKEN if len(_TOKEN) >= 32 else ""  # short tokens are guessable; openssl rand -hex 32
 PROXY_SECRET = os.getenv("PROXY_SECRET", "")
-MAX_BODY = int(os.getenv("MAX_BODY_BYTES", 16 * 1024))  # every write here fits in a few KB
+MAX_BODY = 16 * 1024  # every write here fits in a few KB
 PUBLIC_MAX_AGE = 60  # meter data is hourly, so a minute of staleness is free speed
 
 os.makedirs("./data", exist_ok=True)
-IS_SQLITE = DB_URL.startswith("sqlite")
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False, "timeout": 5} if IS_SQLITE else {})
+# SQLite only: the daily and hourly queries use strftime
+engine = create_engine(DB_URL, connect_args={"check_same_thread": False, "timeout": 5})
 
-if IS_SQLITE:
 
-    @event.listens_for(engine, "connect")
-    def _sqlite_pragmas(conn, _record):
-        # WAL lets readers run while a lead is being written; busy_timeout replaces "database is locked".
-        cur = conn.cursor()
-        for pragma in ("journal_mode=WAL", "synchronous=NORMAL", "busy_timeout=5000", "foreign_keys=ON", "temp_store=MEMORY"):
-            cur.execute(f"PRAGMA {pragma}")
-        cur.close()
+@event.listens_for(engine, "connect")
+def _sqlite_pragmas(conn, _record):
+    # WAL lets readers run while a lead is being written; busy_timeout replaces "database is locked".
+    cur = conn.cursor()
+    for pragma in ("journal_mode=WAL", "synchronous=NORMAL", "busy_timeout=5000", "foreign_keys=ON", "temp_store=MEMORY"):
+        cur.execute(f"PRAGMA {pragma}")
+    cur.close()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     SQLModel.metadata.create_all(engine)
-    if IS_SQLITE:  # databases created before the composite index existed
-        with engine.begin() as c:
-            c.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_reading_meter_ts ON reading (meter_id, ts)")
+    with engine.begin() as c:  # databases created before the composite index existed
+        c.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_reading_meter_ts ON reading (meter_id, ts)")
     with Session(engine) as s:
         ensure(s)
     if not ADMIN_TOKEN:
@@ -129,18 +127,14 @@ class Limiter:
         self.hits: dict[str, deque] = defaultdict(deque)
         self.pruned = time.monotonic()
 
-    def count(self, key: str, window: int) -> int:
+    def hit(self, key: str, limit: int, window: int) -> int:
+        """0 when allowed, otherwise the seconds until the window frees up."""
         q, now = self.hits[key], time.monotonic()
         while q and q[0] <= now - window:
             q.popleft()
-        return len(q)
-
-    def hit(self, key: str, limit: int, window: int) -> int:
-        """0 when allowed, otherwise the seconds until the window frees up."""
-        if self.count(key, window) >= limit:
-            return max(1, int(self.hits[key][0] + window - time.monotonic()) + 1)
-        now = time.monotonic()
-        self.hits[key].append(now)
+        if len(q) >= limit:
+            return max(1, int(q[0] + window - now) + 1)
+        q.append(now)
         if now - self.pruned > 60:
             self.pruned = now
             for k in [k for k, v in self.hits.items() if not v or v[-1] < now - 3600]:
@@ -514,19 +508,7 @@ def measures(request: Request, s: Session = Depends(session)):
     return public_json(request, "measures", compute, max_age=300)
 
 
-# --- calculators and lead capture ------------------------------------------------------
-
-
-class RoiIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    annual_bill_toman: float = Field(gt=0, le=1e15, allow_inf_nan=False)
-    saving_pct: float = Field(7.0, ge=1, le=25, allow_inf_nan=False)
-    sites: int = Field(1, ge=1, le=500)
-
-
-@app.post("/api/roi", dependencies=[Depends(throttle("roi", 60, 60))])
-def roi_endpoint(body: RoiIn):
-    return roi(body.annual_bill_toman, body.saving_pct, body.sites)
+# --- lead capture --------------------------------------------------------------------
 
 
 _BIDI = {0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069}
